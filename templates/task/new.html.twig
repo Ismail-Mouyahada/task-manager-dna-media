@@ -1,0 +1,62 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nouvelle Tâche{% endblock %}
+
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h1 class="h3 mb-4">Créer une nouvelle tâche</h1>
+
+                {{ form_start(form) }}
+                    {{ form_row(form.title) }}
+                    {{ form_row(form.description) }}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form_row(form.status) }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form_row(form.priority) }}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form_row(form.dueDate) }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form_row(form.assignedTo) }}
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{{ path('task_my_tasks') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Retour
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Enregistrer
+                        </button>
+                    </div>
+                {{ form_end(form) }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        // Initialisation du datetimepicker
+        document.addEventListener('DOMContentLoaded', function() {
+            flatpickr('.datetimepicker', {
+                enableTime: true,
+                dateFormat: 'd/m/Y H:i',
+                time_24hr: true,
+                locale: 'fr'
+            });
+        });
+    </script>
+{% endblock %}

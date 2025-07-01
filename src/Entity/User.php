@@ -9,39 +9,73 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Put;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Delete;
 
+
+#[ApiResource(
+    operations: [
+        new GetCollection(security: "is_granted('ROLE_ADMIN')"),
+        new Post(security: "is_anonymous()"),
+        new Get(security: "is_granted('ROLE_USER')"),
+        new Put(security: "is_granted('ROLE_USER') and object == user"),
+        new Patch(security: "is_granted('ROLE_USER') and object == user"),
+        new Delete(security: "is_granted('ROLE_ADMIN') or (is_granted('ROLE_USER') and object == user)"),
+    ],
+    normalizationContext: ['groups' => ['user:read']],
+    denormalizationContext: ['groups' => ['user:write']],
+    security: "is_granted('ROLE_USER')"
+)]
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
 #[UniqueEntity(fields: ['email'], message: 'Cette adresse email est déjà utilisée.')]
+
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
+
+
+
+    
+    #[Groups(['user:read', 'task:read'])]
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
+    #[Groups(['user:read', 'user:write', 'task:read'])]
     #[ORM\Column(length: 180, unique: true)]
     #[Assert\NotBlank(message: 'L\'email ne peut pas être vide.')]
     #[Assert\Email(message: 'Veuillez saisir une adresse email valide.')]
     private ?string $email = null;
 
+    #[Groups(['user:read', 'user:write'])]
     #[ORM\Column]
     private array $roles = [];
 
+    #[Groups(['user:write'])]
     #[ORM\Column]
     private ?string $password = null;
 
+    #[Groups(['user:read', 'user:write', 'task:read'])]
     #[ORM\Column(length: 100)]
     #[Assert\NotBlank(message: 'Le prénom ne peut pas être vide.')]
     #[Assert\Length(min: 2, max: 100, minMessage: 'Le prénom doit contenir au moins {{ limit }} caractères.')]
     private ?string $firstName = null;
 
+    #[Groups(['user:read', 'user:write', 'task:read'])]
     #[ORM\Column(length: 100)]
     #[Assert\NotBlank(message: 'Le nom ne peut pas être vide.')]
     #[Assert\Length(min: 2, max: 100, minMessage: 'Le nom doit contenir au moins {{ limit }} caractères.')]
     private ?string $lastName = null;
 
+    #[Groups(['user:read'])]
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 

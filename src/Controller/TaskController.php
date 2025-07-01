@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Task;
+use App\Form\TaskType;
 use App\Repository\TaskRepository;
 use App\Repository\UserRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -107,6 +108,68 @@ class TaskController extends AbstractController
     {
         return $this->render('task/show.html.twig', [
             'task' => $task,
+        ]);
+    }
+
+    #[Route('/my-tasks', name: 'my_tasks')]
+    public function myTasks(Request $request): Response
+    {
+        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
+
+        $user = $this->getUser();
+        $status = $request->query->get('status');
+        $sortBy = $request->query->get('sort', 'dueDate');
+        $order = $request->query->get('order', 'ASC');
+
+        if ($status) {
+            $tasks = $this->taskRepository->findByUserAndStatus($user, $status);
+        } else {
+            $tasks = $this->taskRepository->findByUser($user);
+        }
+
+        // Tri manuel si nécessaire
+        usort($tasks, function ($a, $b) use ($sortBy, $order) {
+            $getter = 'get' . ucfirst($sortBy);
+            $valueA = $a->$getter();
+            $valueB = $b->$getter();
+
+            if ($valueA === $valueB) return 0;
+
+            $comparison = $valueA <=> $valueB;
+            return $order === 'ASC' ? $comparison : -$comparison;
+        });
+
+        return $this->render('task/my_tasks.html.twig', [
+            'tasks' => $tasks,
+            'currentStatus' => $status,
+            'statusChoices' => Task::getStatusChoices(),
+            'priorityChoices' => Task::getPriorityChoices(),
+            'sortBy' => $sortBy,
+            'order' => $order,
+        ]);
+    }
+
+    #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
+    public function new(Request $request): Response
+    {
+        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
+
+        $task = new Task();
+        $task->setCreatedBy($this->getUser());
+
+        $form = $this->createForm(TaskType::class, $task);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $this->taskRepository->save($task, true);
+
+            $this->addFlash('success', 'La tâche a été créée avec succès !');
+
+            return $this->redirectToRoute('task_my_tasks');
+        }
+
+        return $this->render('task/new.html.twig', [
+            'form' => $form->createView(),
         ]);
     }
 

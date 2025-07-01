@@ -30,13 +30,28 @@
 </head>
 <body>
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-        <div class="container">
-            <a class="navbar-brand" href="/">
-                <i class="fas fa-tasks me-2"></i>Task Manager
+    <div class="navbar-nav ms-auto">
+    {% if is_granted('IS_AUTHENTICATED_FULLY') %}
+        <div class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-user me-1"></i>{{ app.user.firstName }}
             </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                <li><a class="dropdown-item" href="{{ path('task_my_tasks') }}"><i class="fas fa-tasks me-1"></i>Mes tâches</a></li>
+                <li><a class="dropdown-item" href="{{ path('task_index') }}"><i class="fas fa-list me-1"></i>Toutes les tâches</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ path('app_logout') }}"><i class="fas fa-sign-out-alt me-1"></i>Déconnexion</a></li>
+            </ul>
         </div>
-    </nav>
+    {% else %}
+        <a class="nav-link" href="{{ path('app_login') }}">
+            <i class="fas fa-sign-in-alt me-1"></i>Connexion
+        </a>
+        <a class="nav-link" href="{{ path('app_register') }}">
+            <i class="fas fa-user-plus me-1"></i>Inscription
+        </a>
+    {% endif %}
+</div>
 
     <!-- Flash Messages -->
     <div class="container">

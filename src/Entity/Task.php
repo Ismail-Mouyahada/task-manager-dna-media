@@ -5,10 +5,31 @@
 namespace App\Entity;
 
 use App\Repository\TaskRepository;
+use App\Service\TaskNotificationService;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Put;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Delete;
+use Symfony\Component\Serializer\Annotation\Groups;
 
+#[ApiResource(
+    operations: [
+        new GetCollection(security: "is_granted('ROLE_USER')"),
+        new Post(security: "is_granted('ROLE_USER')"),
+        new Get(security: "is_granted('ROLE_USER') and (object.getCreatedBy() == user or object.getAssignedTo() == user)"),
+        new Put(security: "is_granted('ROLE_USER') and object.getCreatedBy() == user"),
+        new Patch(security: "is_granted('ROLE_USER') and (object.getCreatedBy() == user or object.getAssignedTo() == user)"),
+        new Delete(security: "is_granted('ROLE_USER') and object.getCreatedBy() == user"),
+    ],
+    normalizationContext: ['groups' => ['task:read']],
+    denormalizationContext: ['groups' => ['task:write']],
+)]
 #[ORM\Entity(repositoryClass: TaskRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 class Task
@@ -23,19 +44,29 @@ class Task
     public const PRIORITY_HIGH = 'high';
     public const PRIORITY_URGENT = 'urgent';
 
+
+
+
+
+
+
+    #[Groups(['task:read', 'task:write'])]
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
+    #[Groups(['task:read', 'task:write'])]
     #[ORM\Column(length: 255)]
     #[Assert\NotBlank(message: 'Le titre ne peut pas être vide.')]
     #[Assert\Length(min: 3, max: 255, minMessage: 'Le titre doit contenir au moins {{ limit }} caractères.')]
     private ?string $title = null;
 
+    #[Groups(['task:read', 'task:write'])]
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $description = null;
 
+    #[Groups(['task:read', 'task:write'])]
     #[ORM\Column(length: 50)]
     #[Assert\Choice(choices: [
         self::STATUS_PENDING,
@@ -45,6 +76,7 @@ class Task
     ], message: 'Statut invalide.')]
     private ?string $status = self::STATUS_PENDING;
 
+    #[Groups(['task:read', 'task:write'])]
     #[ORM\Column(length: 50)]
     #[Assert\Choice(choices: [
         self::PRIORITY_LOW,
@@ -54,24 +86,40 @@ class Task
     ], message: 'Priorité invalide.')]
     private ?string $priority = self::PRIORITY_MEDIUM;
 
+    #[Groups(['task:read', 'task:write'])]
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $dueDate = null;
 
+    #[Groups(['task:read'])]
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
+    #[Groups(['task:read'])]
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $completedAt = null;
+
+
 
     #[ORM\ManyToOne(inversedBy: 'createdTasks')]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $createdBy = null;
 
+
     #[ORM\ManyToOne(inversedBy: 'assignedTasks')]
     private ?User $assignedTo = null;
+    #[ORM\PostPersist]
+
+    #[ORM\PostUpdate]
+    public function sendAssignmentNotification(TaskNotificationService $notificationService): void
+    {
+        if ($this->assignedTo !== null) {
+            $notificationService->sendTaskAssignedNotification($this);
+        }
+    }
+
 
     public function __construct()
     {

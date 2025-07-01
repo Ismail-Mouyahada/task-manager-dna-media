@@ -1,0 +1,127 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Mes Tâches{% endblock %}
+
+{% block body %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-tasks me-2"></i>Mes Tâches</h1>
+            <a href="{{ path('task_new') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Nouvelle tâche
+            </a>
+        </div>
+
+        <!-- Filtres -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" class="row align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label">Filtrer par statut</label>
+                        <select name="status" class="form-select">
+                            <option value="">Tous les statuts</option>
+                            {% for label, value in statusChoices %}
+                                <option value="{{ value }}" {{ currentStatus == value ? 'selected' : '' }}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Trier par</label>
+                        <select name="sort" class="form-select">
+                            <option value="dueDate" {{ sortBy == 'dueDate' ? 'selected' : '' }}>Date d'échéance</option>
+                            <option value="createdAt" {{ sortBy == 'createdAt' ? 'selected' : '' }}>Date de création</option>
+                            <option value="priority" {{ sortBy == 'priority' ? 'selected' : '' }}>Priorité</option>
+                            <option value="title" {{ sortBy == 'title' ? 'selected' : '' }}>Titre</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Ordre</label>
+                        <select name="order" class="form-select">
+                            <option value="ASC" {{ order == 'ASC' ? 'selected' : '' }}>Croissant</option>
+                            <option value="DESC" {{ order == 'DESC' ? 'selected' : '' }}>Décroissant</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-filter me-1"></i>Filtrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Liste des tâches -->
+        <div class="row">
+            {% for task in tasks %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card h-100
+                        {% if task.isOverdue %}border-danger
+                        {% elseif task.priority == 'urgent' %}border-warning
+                        {% elseif task.status == 'completed' %}border-success
+                        {% else %}border-secondary{% endif %}">
+
+                        <div class="card-header d-flex justify-content-between align-items-start">
+                            <h6 class="card-title mb-0">{{ task.title }}</h6>
+                            <div class="d-flex flex-column align-items-end">
+                                <span class="badge
+                                    {% if task.status == 'pending' %}bg-warning
+                                    {% elseif task.status == 'in_progress' %}bg-info
+                                    {% elseif task.status == 'completed' %}bg-success
+                                    {% else %}bg-secondary{% endif %} mb-1">
+                                    {{ task.statusLabel }}
+                                </span>
+                                <span class="badge
+                                    {% if task.priority == 'low' %}bg-light text-dark
+                                    {% elseif task.priority == 'medium' %}bg-primary
+                                    {% elseif task.priority == 'high' %}bg-warning
+                                    {% else %}bg-danger{% endif %}">
+                                    {{ task.priorityLabel }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="card-body">
+                            {% if task.description %}
+                                <p class="card-text small">{{ task.description|length > 100 ? task.description|slice(0, 100) ~ '...' : task.description }}</p>
+                            {% endif %}
+
+                            <div class="small text-muted">
+                                <div><i class="fas fa-user me-1"></i>Créé par: {{ task.createdBy.fullName }}</div>
+                                {% if task.assignedTo %}
+                                    <div><i class="fas fa-user-tag me-1"></i>Assigné à: {{ task.assignedTo.fullName }}</div>
+                                {% endif %}
+                                {% if task.dueDate %}
+                                    <div class="{% if task.isOverdue %}text-danger fw-bold{% endif %}">
+                                        <i class="fas fa-calendar me-1"></i>Échéance: {{ task.dueDate|date('d/m/Y H:i') }}
+                                        {% if task.isOverdue %}
+                                            <i class="fas fa-exclamation-triangle ms-1"></i>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="card-footer">
+                            <small class="text-muted">
+                                Créé le {{ task.createdAt|date('d/m/Y H:i') }}
+                            </small>
+                            <a href="{{ path('task_show', {id: task.id}) }}" class="btn btn-sm btn-outline-primary float-end">
+                                <i class="fas fa-eye me-1"></i>Voir
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Aucune tâche trouvée avec les critères sélectionnés.
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
