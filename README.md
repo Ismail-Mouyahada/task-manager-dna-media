@@ -1,5 +1,11 @@
 # Documentation Complète du Projet Task Manager
 
+![alt text](image.png)
+
+![alt text](image-1.png)
+
+![alt text](image-2.png)
+
 ## Table des Matières
 1. [Introduction](#introduction)
 2. [Architecture du Projet](#architecture-du-projet)
