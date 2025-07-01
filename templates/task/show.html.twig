@@ -1,0 +1,94 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ task.title }} - Détail de la tâche{% endblock %}
+
+{% block body %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ path('task_index') }}">Tâches</a></li>
+                <li class="breadcrumb-item active">{{ task.title }}</li>
+            </ol>
+        </nav>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-start">
+                <h3 class="mb-0">{{ task.title }}</h3>
+                <div class="d-flex flex-column align-items-end">
+                    <span class="badge
+                        {% if task.status == 'pending' %}bg-warning
+                        {% elseif task.status == 'in_progress' %}bg-info
+                        {% elseif task.status == 'completed' %}bg-success
+                        {% else %}bg-secondary{% endif %} mb-2 fs-6">
+                        {{ task.statusLabel }}
+                    </span>
+                    <span class="badge
+                        {% if task.priority == 'low' %}bg-light text-dark
+                        {% elseif task.priority == 'medium' %}bg-primary
+                        {% elseif task.priority == 'high' %}bg-warning
+                        {% else %}bg-danger{% endif %} fs-6">
+                        Priorité: {{ task.priorityLabel }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="card-body">
+                {% if task.description %}
+                    <div class="mb-4">
+                        <h5><i class="fas fa-align-left me-2"></i>Description</h5>
+                        <p class="text-muted">{{ task.description|nl2br }}</p>
+                    </div>
+                {% endif %}
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5><i class="fas fa-info-circle me-2"></i>Informations</h5>
+                        <ul class="list-unstyled">
+                            <li><strong>Créé par:</strong> {{ task.createdBy.fullName }} ({{ task.createdBy.email }})</li>
+                            {% if task.assignedTo %}
+                                <li><strong>Assigné à:</strong> {{ task.assignedTo.fullName }} ({{ task.assignedTo.email }})</li>
+                            {% else %}
+                                <li><strong>Assigné à:</strong> <em>Non assigné</em></li>
+                            {% endif %}
+                            <li><strong>Créé le:</strong> {{ task.createdAt|date('d/m/Y à H:i') }}</li>
+                            {% if task.updatedAt %}
+                                <li><strong>Modifié le:</strong> {{ task.updatedAt|date('d/m/Y à H:i') }}</li>
+                            {% endif %}
+                            {% if task.completedAt %}
+                                <li><strong>Terminé le:</strong> {{ task.completedAt|date('d/m/Y à H:i') }}</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h5><i class="fas fa-calendar me-2"></i>Planification</h5>
+                        {% if task.dueDate %}
+                            <div class="alert {% if task.isOverdue %}alert-danger{% else %}alert-info{% endif %}">
+                                <i class="fas fa-calendar-alt me-2"></i>
+                                <strong>Échéance:</strong> {{ task.dueDate|date('d/m/Y à H:i') }}
+                                {% if task.isOverdue %}
+                                    <br><i class="fas fa-exclamation-triangle me-1"></i>
+                                    <strong>Cette tâche est en retard !</strong>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="alert alert-secondary">
+                                <i class="fas fa-calendar-times me-2"></i>
+                                Aucune date d'échéance définie
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer">
+                <a href="{{ path('task_index') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Retour à la liste
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock  %}
+
