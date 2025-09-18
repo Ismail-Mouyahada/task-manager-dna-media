@@ -1,0 +1,77 @@
+```yaml
+version: "3.9"
+services:
+  task-manager-dna-media:
+    build:
+      context: .
+      dockerfile: Dockerfile  # Assurez-vous d'avoir un Dockerfile dans le répertoire courant
+    ports:
+      - "8080:8080" # Remplacez 8080 par le port d'écoute de votre application
+    volumes:
+      - ./app:/var/www/html # Remplacez ./app par le répertoire de votre application
+    environment:
+      - APP_ENV=dev # ou prod, etc.  A adapter à votre application
+      - # Ajoutez d'autres variables d'environnement selon vos besoins
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"] # Remplacez /health par l'endpoint de votre healthcheck
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - task-manager-network
+
+networks:
+  task-manager-network:
+
+```
+
+**Explications:**
+
+* **`version: "3.9"`:** Spécifie la version du fichier docker-compose.
+* **`services:`:** Définit les services de l'application.  Ici, un seul service, `task-manager-dna-media`.
+* **`build:`:** Indique que l'image du service sera construite à partir d'un Dockerfile situé dans le répertoire courant.  **Assurez-vous d'avoir un fichier `Dockerfile` dans le même répertoire que ce fichier `docker-compose.yml`.**  Ce Dockerfile contiendra les instructions pour construire l'image PHP de votre application.  Un exemple simple est fourni ci-dessous.
+* **`ports:`:** Mappe le port 8080 de l'hôte au port 8080 du conteneur.  Adaptez ceci au port utilisé par votre application.
+* **`volumes:`:** Monte le répertoire `./app` de l'hôte sur `/var/www/html` dans le conteneur.  Remplacez `./app` par le répertoire contenant votre code source PHP.  Ceci permet de modifier le code sur l'hôte et de voir les changements immédiatement dans le conteneur.
+* **`environment:`:** Définit les variables d'environnement pour l'application.  Remplacez `APP_ENV=dev` par vos propres variables.
+* **`healthcheck:`:** Définit un contrôle de santé pour le service.  Il utilise `curl` pour vérifier si l'endpoint `/health` est accessible.  Adaptez l'URL et la commande selon votre application.
+* **`networks:`:** Définit le réseau pour le service.  Ici, un réseau nommé `task-manager-network` est créé.  Cela est utile si vous ajoutez d'autres services plus tard.
+
+
+**Exemple de Dockerfile (à placer dans le même répertoire que docker-compose.yml):**
+
+```dockerfile
+FROM php:8.1-apache
+
+# Installer les extensions PHP nécessaires
+RUN docker-php-ext-install pdo_mysql
+
+# Copier le code de l'application
+COPY ./app /var/www/html
+
+# Exposer le port 80
+EXPOSE 8080
+
+# Créer un fichier de configuration Apache minimal
+COPY apache.conf /etc/apache2/sites-available/000-default.conf
+
+# Activer le site
+RUN a2ensite 000-default.conf
+
+# Redémarrer Apache
+CMD ["apache2-foreground"]
+```
+
+**Exemple de fichier `apache.conf` (à placer dans le même répertoire que docker-compose.yml):**
+
+```apache
+<VirtualHost *:8080>
+    ServerName localhost
+    DocumentRoot "/var/www/html"
+    <Directory "/var/www/html">
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+```
+
+N'oubliez pas d'adapter ces exemples à votre projet et à vos besoins spécifiques.  Ce n'est qu'une base de départ.  Vous devrez peut-être installer des bibliothèques supplémentaires ou configurer d'autres aspects de votre application.
