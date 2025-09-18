@@ -1,76 +1,88 @@
 ```dockerfile
-# Utilisez une image de base minimale et optimisée pour PHP
-FROM php:8.1-fpm-bullseye
+# Utiliser une image de base alpine pour réduire la taille de l'image
+FROM php:8.1-fpm-alpine AS builder
 
-# Définir l'utilisateur et le groupe
-ARG UID=1000
-ARG GID=1000
-RUN groupadd -g ${GID} -o www-data && useradd -m -u ${UID} -g ${GID} -s /bin/bash www-data
+# Installer les extensions PHP nécessaires.  Remplacer par vos extensions réelles.
+RUN apk add --no-cache \
+    git \
+    unzip \
+    && docker-php-ext-install pdo_mysql mbstring
 
-# Copier uniquement le fichier composer.json pour installer les dépendances
-COPY composer.json composer.lock ./
-RUN --mount=type=cache,id=composer \
-    composer install --no-interaction --optimize-autoloader --no-dev \
-    && rm -rf /var/www/html/vendor/composer
+# Installer Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+# Copier uniquement le composer.json et composer.lock pour optimiser le cache
+COPY composer.json composer.lock /app/
+
+# Installer les dépendances
+WORKDIR /app
+RUN composer install --no-interaction --optimize-autoloader --no-dev
 
 # Copier le reste du code source
-COPY . /var/www/html
+COPY . /app
 
-# Installer les extensions PHP nécessaires (ajuster selon vos besoins)
-RUN docker-php-ext-install pdo_mysql mbstring
+# Exécuter des commandes de build spécifiques à l'application (si nécessaire)
+# RUN php artisan optimize
 
-# Définir le propriétaire des fichiers et des dossiers
-RUN chown -R www-data:www-data /var/www/html
+# Créer un utilisateur non-root
+RUN addgroup --system --gid 1001 www-data && adduser --system --uid 1001 --gid 1001 www-data
 
-# Activer les extensions opcache
-RUN echo "zend_extension=/usr/lib/php/20220902/opcache" >> /usr/local/etc/php/conf.d/docker-opcache.ini
+# Changer le propriétaire des fichiers de l'application
+RUN chown -R www-data:www-data /app
 
-# Définir l'utilisateur et le groupe pour exécuter PHP-FPM
+# Image finale pour la production
+FROM php:8.1-fpm-alpine
+
+# Copier uniquement le nécessaire pour une petite image
+COPY --from=builder /app/ /app
+COPY --from=builder /usr/local/bin/composer /usr/local/bin/composer
+
+# Définir l'utilisateur
 USER www-data
 
-# Exposer le port nécessaire pour PHP-FPM
+# Exposer le port PHP-FPM
 EXPOSE 9000
 
-# Copier un script d'entrée pour exécuter php-fpm en arrière-plan
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Définir le répertoire de travail
+WORKDIR /app
 
-# Définir le point d'entrée
-ENTRYPOINT ["/entrypoint.sh"]
+# Définir le répertoire web
+ENV DOCUMENT_ROOT=/app/public
+
+# Démarrer PHP-FPM
+CMD ["php-fpm"]
 ```
 
-**entrypoint.sh:**
+**Explications et bonnes pratiques:**
 
-```bash
-#!/bin/bash
+* **Deux étapes:**  L'utilisation de deux étapes (builder et production) permet d'optimiser le cache.  La couche `builder` effectue les tâches gourmandes en temps (installation des dépendances) et la couche `production` copie uniquement le résultat.  Cela évite de reconstruire l'image à chaque modification du code source si le `composer.json` et `composer.lock` n'ont pas changé.
 
-# Exécuter php-fpm en arrière-plan
-php-fpm --nodaemonize --fpm-config /usr/local/etc/php-fpm.conf &
+* **Alpine Linux:**  L'utilisation d'Alpine Linux réduit considérablement la taille de l'image.
 
-# Attendre que php-fpm soit démarré
-while ! curl -f http://localhost:9000; do
-  sleep 1
-done
+* **`--no-cache`:**  Utilisé avec `apk add` pour éviter de stocker des fichiers inutiles dans le cache.
 
-# Garder le conteneur en marche
-tail -f /dev/null
-```
+* **Extensions PHP:**  N'installez que les extensions PHP strictement nécessaires.
 
+* **Composer:**  Installer Composer et gérer les dépendances.  `--no-interaction`, `--optimize-autoloader`, et `--no-dev` optimisent l'installation.
 
-**Explications des optimisations:**
+* **Utilisateur non-root:**  L'utilisation de l'utilisateur `www-data` améliore la sécurité.
 
-* **Image de base minimale:**  `php:8.1-fpm-bullseye` est une image légère et officielle.  `bullseye` est une version Debian stable.
-* **Optimisation des couches:** Le `Dockerfile` est conçu pour minimiser le nombre de couches et maximiser le réutilisation du cache.  Les dépendances Composer sont installées séparément avant le reste du code.
-* **Sécurité:** L'utilisation d'un utilisateur non-root (`www-data`) améliore la sécurité.  Les permissions sont correctement définies.
-* **Ports:** Le port 9000 (port par défaut de PHP-FPM) est exposé.
-* **Utilisateur non-root:**  L'utilisateur `www-data` est utilisé pour exécuter l'application.
-* **Production:** L'utilisation d' `--optimize-autoloader` lors de l'installation de Composer améliore les performances.  Opcache est activé pour une meilleure performance.  Le script `entrypoint.sh` assure un démarrage correct et robuste de php-fpm.
+* **`chown`:**  Change le propriétaire des fichiers pour que l'utilisateur `www-data` puisse les accéder.
 
-**Avant de construire l'image:**
+* **`EXPOSE`:**  Expose le port 9000 (port par défaut de PHP-FPM).  Adaptez si nécessaire.
 
-* **Assurez-vous d'avoir un fichier `composer.json` et `composer.lock` dans votre répertoire.**
-* **Ajustez les extensions PHP (`docker-php-ext-install`) selon les besoins de votre application.**
-* **Si vous utilisez une base de données, vous devrez configurer la connexion dans votre code.**  Ce Dockerfile ne gère pas la configuration de la base de données.  Vous devrez probablement utiliser un autre conteneur pour votre base de données (par exemple, MySQL ou PostgreSQL) et lier les deux conteneurs.
+* **`DOCUMENT_ROOT`:** Spécifie le répertoire web de votre application.  Adaptez en fonction de votre structure de projet.
+
+* **`CMD ["php-fpm"]`:** Lance PHP-FPM au démarrage du conteneur.
+
+**Avant d'utiliser ce Dockerfile:**
+
+* **Remplacez les extensions PHP par celles dont votre application a besoin.**
+* **Assurez-vous que votre répertoire `public` est correctement configuré.**
+* **Adaptez le `WORKDIR` et `DOCUMENT_ROOT` si nécessaire.**
+* **Ajoutez des commandes de build spécifiques à votre application si nécessaire (ex: `php artisan migrate`).**
+* **Considérez l'ajout d'un processus de supervision comme `supervisord` pour une meilleure gestion des processus.**
+* **En production, il est recommandé d'utiliser un reverse proxy comme Nginx ou Apache devant PHP-FPM pour gérer les requêtes HTTP.**
 
 
-Ce Dockerfile fournit une base solide pour votre application.  N'hésitez pas à l'adapter à vos besoins spécifiques.  N'oubliez pas de construire l'image avec `docker build -t task-manager-dna-media .` et de la lancer avec `docker run -p 80:9000 task-manager-dna-media`.  (Vous devrez peut-être adapter le port 80 selon vos besoins).
+Ce Dockerfile est un point de départ.  Vous devrez peut-être l'adapter en fonction des besoins spécifiques de votre application `task-manager-dna-media`.
