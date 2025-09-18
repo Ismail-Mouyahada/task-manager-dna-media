@@ -1,0 +1,95 @@
+```yaml
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - develop # Ajoutez d'autres branches si nécessaire
+  pull_request:
+    branches:
+      - main
+      - develop # Ajoutez d'autres branches si nécessaire
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: php:8.1-fpm # ou la version PHP souhaitée
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --optimize-autoloader
+
+      - name: Run tests
+        run: ./vendor/bin/phpunit # Adaptez la commande à votre configuration de test
+
+      - name: Build Docker image
+        run: docker build -t task-manager-dna-media .
+
+      - name: Login to Docker registry (si nécessaire)
+        uses: docker/login-action@v2
+        with:
+          registry: docker.io # ou votre registre Docker
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Push Docker image
+        run: docker push task-manager-dna-media:latest
+
+      - name: Deploy to staging (si besoin)
+        if: github.ref == 'refs/heads/main'
+        run: | # Remplacez par votre script de déploiement
+          echo "Déploiement sur staging..."
+          # ... vos commandes de déploiement ...
+
+      - name: Deploy to production (si besoin et si configuré)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: | # Remplacez par votre script de déploiement
+          echo "Déploiement sur production..."
+          # ... vos commandes de déploiement ...
+
+
+  # Jobs pour d'autres versions de Node.js/Python (si nécessaire)
+  # Exemple pour Node.js 16
+  # node16:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - ...
+
+
+  # Exemple pour Python 3.9
+  # python39:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - ...
+
+
+notifications:
+  on_failure:
+    channels:
+      - slack # ou autre canal de notification
+      # configurez les détails de votre canal de notification ici
+    paths-ignore:
+      - 'docs/**'
+      - '.github/**'
+
+
+```
+
+**Explications et points importants:**
+
+* **Docker:** Le workflow utilise un conteneur Docker pour exécuter le build et les tests.  Cela assure la cohérence de l'environnement.  Assurez-vous d'avoir un `Dockerfile` dans la racine de votre projet.
+* **PHP:**  L'exemple suppose l'utilisation de Composer et PHPUnit.  Adaptez les commandes `composer install` et `./vendor/bin/phpunit` à votre configuration.
+* **Tests:**  Remplacez `./vendor/bin/phpunit` par la commande appropriée pour exécuter vos tests.
+* **Déploiement:**  Les sections "Deploy to staging" et "Deploy to production" sont des exemples.  Vous devrez remplacer les commentaires par vos propres scripts de déploiement.  Cela pourrait inclure des commandes SSH, des appels d'API, etc.
+* **Registre Docker:**  Si vous poussez votre image Docker vers un registre (Docker Hub, par exemple), vous devrez configurer les secrets `DOCKER_USERNAME` et `DOCKER_PASSWORD` dans les paramètres de votre dépôt GitHub.
+* **Branches:**  Le workflow est déclenché par les pushes et les pull requests sur les branches `main` et `develop`.  Modifiez les branches selon vos besoins.
+* **Notifications:**  La section `notifications` est un exemple.  Vous devrez configurer les détails de votre canal de notification (Slack, email, etc.).
+* **Node.js/Python:** Les sections commentées montrent comment ajouter des jobs pour d'autres versions de Node.js ou Python si nécessaire.  Vous devrez adapter les étapes à vos besoins spécifiques.
+
+
+N'oubliez pas de remplacer les placeholders (comme les commandes de déploiement) par vos propres configurations.  Ce fichier YAML est un modèle et doit être adapté à votre projet spécifique.  Avant de le pousser, testez localement vos commandes pour vous assurer qu'elles fonctionnent correctement.
